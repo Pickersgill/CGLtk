@@ -8,14 +8,15 @@ class CGL(Frame):
 		self.parent = parent
 		self.grid(column=0, row=0)
 		self.configure(height=600, width=600)
+		self.paused = True
 
-		self.CELL_SIZE = 10
+		self.CELL_SIZE = 20
 		self.CANVAS_DIM = (600, 400)
 		self.COLS = self.CANVAS_DIM[0] // self.CELL_SIZE
 		self.ROWS = self.CANVAS_DIM[1] // self.CELL_SIZE
 
 		#INITIALIZE CELLS
-		self.cells = [[1] * self.COLS for i in range(self.ROWS)]
+		self.cells = [[0] * self.COLS for i in range(self.ROWS)]
 
 		# RANDOMLY ADD CELLS
 		for i in range(200):
@@ -27,25 +28,56 @@ class CGL(Frame):
 			
 	def clear_cells(self):
 		self.cells = [[0] * self.COLS for i in range(self.ROWS)]
+		self.draw_cells(False)
 
 	def buildUI(self):
 		# MAKE BUTTON BAR
 		button_bar = Frame(self, padx=10, pady=10)
 		button_bar.grid(column=0, row=0)
 			
-		start = Button(button_bar, text="start")
-		start.grid(column=0, row=0)
+		gen = Button(button_bar, text="gen", command=self.gen)
+		gen.grid(column=0, row=0)
 
 		clear = Button(button_bar, text="clear", command=self.clear_cells)
 		clear.grid(column=1, row=0)
 
-		play = Button(button_bar, text="play/pause", command=self.draw_cells)
-		play.grid(column=2, row=0)
+		self.play = Button(button_bar, text="play", command=self.pp)
+		self.play.grid(column=2, row=0)
 
 		# MAKE CANVAS/GRID CONSTRUCT
 		self.canvas = Canvas(self, width=self.CANVAS_DIM[0], height=self.CANVAS_DIM[1], bg="white")
 		self.canvas.grid(column=0, row=1)
+		self.canvas.bind("<Button-1>", self.canvas_click)
 		self.draw_grid()
+		self.draw_cells(False)
+
+	def canvas_click(self, event):
+		row = event.x // self.CELL_SIZE
+		col = event.y // self.CELL_SIZE
+		self.cells[col][row] = self.cells[col][row] ^ 1
+		self.draw_cells(False)
+
+	def pp(self):
+		if self.paused:
+			self.play.configure(text="pause")
+			self.paused = False
+			self.draw_cells(True)
+		else:
+			self.play.configure(text="play")
+			self.paused = True
+
+	def gen(self):
+		rand_cells = [[0] * self.COLS for i in range(self.ROWS)]
+
+		# RANDOMLY ADD CELLS
+		for i in range(200):
+			rx = random.randint(0, self.COLS-1)
+			ry = random.randint(0, self.ROWS-1)
+			rand_cells[ry][rx] = 1
+		
+		self.cells = rand_cells
+
+		self.draw_cells(False)
 
 	def draw_grid(self):
 		self.canvas.create_rectangle(0, 0, self.CANVAS_DIM[0], self.CANVAS_DIM[1], fill="white")
@@ -55,10 +87,9 @@ class CGL(Frame):
 		for i in range(0, self.CANVAS_DIM[1], self.CELL_SIZE):
 			self.canvas.create_line(0, i, self.CANVAS_DIM[0], i)
 
-	def draw_cells(self):
+	def draw_cells(self, animate=True):
 		self.draw_grid()
 		sc = self.cells
-		print(sc)
 		for i in range(len(sc)):
 			y_pos = i * self.CELL_SIZE
 			for j in range(len(sc[0])):
@@ -71,7 +102,8 @@ class CGL(Frame):
 						fill="yellow"
 					)
 	
-		self.simulate()
+		if animate and not self.paused:
+			self.simulate()
 
 	def simulate(self):
 		#ADD SIMULATION LOGIC
@@ -79,11 +111,19 @@ class CGL(Frame):
 		for i in range(len(self.cells)):
 			for j in range(len(self.cells[0])):
 				curr_n = self.getN(i, j)
-				if curr_n < 2:
-					new_cells[i][j] = 0
-				elif curr_n <= 3:
-					new_cells[i][j] = 1
-				elif curr_n > 3
+				alive = self.cells[i][j] == 1
+				if alive:
+					if curr_n < 2:
+						new_cells[i][j] = 0
+					elif curr_n in [2, 3]:
+						new_cells[i][j] = 1
+					elif curr_n > 3:
+						new_cells[i][j] = 0
+				else:
+					if curr_n == 3:
+						new_cells[i][j] = 1
+		self.cells = new_cells
+		root.after(100, self.draw_cells)
 				
 		
 	def getN(self, x, y):
